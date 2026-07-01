@@ -1,0 +1,23 @@
+# PostgreSQL pour le développement local.
+# Le service "api" sera ajouté à l'étape Infrastructure (Prisma + Express).
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: festival-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-festival}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-festival}
+      POSTGRES_DB: ${POSTGRES_DB:-festival}
+    ports:
+      - "5432:5432"
+    volumes:
+      - festival_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-festival} -d ${POSTGRES_DB:-festival}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  festival_db_data:
