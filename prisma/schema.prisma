@@ -1,0 +1,86 @@
+// Schéma Prisma — vit exclusivement dans la couche infrastructure.
+// Les modèles ci-dessous sont des représentations de PERSISTANCE ; ils ne
+// remplacent pas les entités du domaine (des mappers font la conversion).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id
+  email        String         @unique
+  passwordHash String
+  role         String
+  firstName    String?
+  lastName     String?
+  createdAt    DateTime
+  reservations Reservation[]
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id        String    @id
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  createdAt DateTime
+  revokedAt DateTime?
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Venue {
+  id       String  @id
+  name     String
+  address  String
+  capacity Int
+  events   Event[]
+}
+
+model Event {
+  id          String   @id
+  title       String
+  description String
+  venueId     String
+  organizerId String
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime
+  venue       Venue    @relation(fields: [venueId], references: [id])
+  slots       Slot[]
+
+  @@index([venueId])
+}
+
+model Slot {
+  id           String        @id
+  eventId      String
+  startTime    DateTime
+  endTime      DateTime
+  capacity     Int
+  allowedRoles String[]
+  event        Event         @relation(fields: [eventId], references: [id])
+  reservations Reservation[]
+
+  @@index([eventId])
+}
+
+model Reservation {
+  id        String   @id
+  userId    String
+  slotId    String
+  status    String
+  createdAt DateTime
+  user      User     @relation(fields: [userId], references: [id])
+  slot      Slot     @relation(fields: [slotId], references: [id])
+
+  // Renforce le contrôle des doublons au niveau base (en plus de la règle métier).
+  @@unique([userId, slotId])
+  @@index([slotId])
+}

@@ -25,6 +25,14 @@ import type { PasswordHasher } from '../application/ports/PasswordHasher'
 import type { TokenService } from '../application/ports/TokenService'
 import type { AppDependencies } from '../interface/http/AppDependencies'
 
+/** Ensemble des repositories injectés dans le conteneur (in-memory ou Prisma). */
+export interface Repositories {
+  users: UserRepository
+  slots: SlotRepository
+  reservations: ReservationRepository
+  refreshTokens: RefreshTokenRepository
+}
+
 export interface Container {
   users: UserRepository
   slots: SlotRepository
@@ -41,20 +49,16 @@ export interface Container {
 }
 
 /**
- * Composition root : seul endroit qui instancie des dépendances concrètes.
- * Les repositories sont en mémoire pour l'instant ; ils seront remplacés par
- * les adapters Prisma sans modifier le domaine ni les use cases.
+ * Assemble les adapters de sécurité et les use cases autour d'un jeu de
+ * repositories. Partagé par la variante en mémoire et la variante Prisma :
+ * seul le choix des repositories change, jamais le domaine ni les use cases.
  */
-export function buildContainer(env: EnvConfig = loadEnv()): Container {
-  const users = new InMemoryUserRepository()
-  const slots = new InMemorySlotRepository()
-  const reservations = new InMemoryReservationRepository()
-  const refreshTokenRepository = new InMemoryRefreshTokenRepository()
+export function assembleContainer(repositories: Repositories, env: EnvConfig): Container {
+  const { users, slots, reservations, refreshTokens: refreshTokenRepository } = repositories
 
   const passwordHasher = new BcryptPasswordHasher(env.bcryptRounds)
   const tokenService = new JwtTokenService(env.jwtAccessSecret)
   const refreshTokenService = new CryptoRefreshTokenService()
-
   const clock = new SystemClock()
   const ids = new UuidGenerator()
   const authConfig: AuthConfig = {
@@ -104,6 +108,19 @@ export function buildContainer(env: EnvConfig = loadEnv()): Container {
     logoutUser,
     getProfile,
   }
+}
+
+/** Conteneur avec repositories EN MÉMOIRE (dev sans base, et tests). */
+export function buildContainer(env: EnvConfig = loadEnv()): Container {
+  return assembleContainer(
+    {
+      users: new InMemoryUserRepository(),
+      slots: new InMemorySlotRepository(),
+      reservations: new InMemoryReservationRepository(),
+      refreshTokens: new InMemoryRefreshTokenRepository(),
+    },
+    env,
+  )
 }
 
 /** Extrait de quoi la couche HTTP a besoin à partir du conteneur. */

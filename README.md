@@ -7,21 +7,28 @@ Blocs évalués : **Authentification avancée** et **Clean Architecture**.
 
 ## Démarrage rapide
 
-Prérequis : Node.js >= 20. Docker (optionnel, pour PostgreSQL).
+Prérequis : Node.js >= 20, Docker (pour PostgreSQL).
 
 ```
 cp .env.example .env
-npm install
-npm run typecheck   # vérifie les types (0 erreur attendue)
-npm test            # lance les tests (32 attendus)
-npm run arch:check  # vérifie l'absence d'import interdit dans le coeur
-npm run dev         # démarre l'API sur http://localhost:3000
+npm install               # installe les dépendances et génère le client Prisma (postinstall)
+npm run typecheck         # vérifie les types (0 erreur attendue)
+npm test                  # lance les tests (40 ; 2 tests Prisma ignorés sans base)
+npm run arch:check        # vérifie l'absence d'import interdit dans le coeur
+
+# Base de données (requise pour lancer l'API)
+docker compose up -d db   # démarre PostgreSQL
+npm run db:push           # crée le schéma dans la base (Prisma)
+npm run dev               # démarre l'API sur http://localhost:3000
 ```
 
-Un service PostgreSQL est fourni via `docker compose up -d`. Il est préparé pour
-l'étape suivante mais n'est pas encore utilisé : tant que Prisma n'est pas
-branché, les repositories fonctionnent en mémoire et les données ne sont pas
-persistées entre deux redémarrages.
+Le fichier `.env` (copié depuis `.env.example`) doit exister avant les commandes
+Prisma et le serveur : `DATABASE_URL` y est défini. `npm install` seul ne suffit
+donc pas pour lancer l'API.
+
+Les tests s'exécutent sans base de données : ils utilisent des repositories en
+mémoire. Le serveur (`npm run dev`) utilise PostgreSQL via Prisma ; il faut donc
+démarrer la base et pousser le schéma au préalable.
 
 ## Bloc Clean Architecture
 
@@ -33,7 +40,7 @@ dépend de `domain`.
 | --- | --- |
 | `domain` | Entités, value objects, erreurs métier, policies, interfaces de repositories. Aucune dépendance à un framework. |
 | `application` | Cas d'usage et ports techniques (Clock, IdGenerator, PasswordHasher, TokenService, RefreshTokenService). |
-| `infrastructure` | Adapters : repositories en mémoire, SystemClock, UuidGenerator, bcrypt, JWT, crypto. |
+| `infrastructure` | Adapters : repositories Prisma et en mémoire, mappers, SystemClock, UuidGenerator, bcrypt, JWT, crypto. |
 | `interface` | Application Express : routes, middlewares, gestionnaire d'erreurs, présentateurs. |
 | `main` | Composition root (assemblage des dépendances) et point d'entrée du serveur. |
 
@@ -50,6 +57,54 @@ dans `domain/` et `application/`.
 
 Preuve d'indépendance : les cas d'usage sont testés sans base de données ni
 serveur HTTP, grâce à des implémentations en mémoire des repositories.
+
+## Persistance (Prisma)
+
+Prisma vit **exclusivement dans la couche infrastructure**. Le schéma
+(`prisma/schema.prisma`), le client, les mappers et les repositories Prisma
+n'existent que là. Le domaine et l'application ne connaissent que les interfaces
+de repositories ; `npm run arch:check` interdit tout import de Prisma dans le
+coeur. Le composition root choisit l'implémentation : en mémoire pour les tests
+et le développement sans base, Prisma/PostgreSQL pour le serveur.
+
+Les modèles Prisma ne remplacent pas les entités du domaine : des mappers
+convertissent modèle de persistance ↔ entité (`toDomainUser` / `toPersistenceUser`,
+etc.).
+
+Commandes Prisma :
+
+```
+npm run prisma:generate   # génère le client (aussi lancé au postinstall)
+npm run db:push           # synchronise le schéma avec la base (développement)
+npm run db:migrate        # crée/applique une migration versionnée
+```
+
+### Contraintes de base qui renforcent les règles métier
+
+- `User.email` `@unique` : une violation (code Prisma `P2002`) est traduite en
+  `EmailAlreadyInUseError` par `PrismaUserRepository`, en plus du pré-contrôle
+  dans `RegisterUser`. Couvre le cas de deux inscriptions concurrentes.
+- `RefreshToken.tokenHash` `@unique` et consommation atomique de l'ancien refresh
+  token : `consume` révoque le token par une mise à jour conditionnelle
+  (`revokedAt IS NULL AND expiresAt > now`) en une seule requête. Si aucune ligne
+  n'est affectée, le rejeu est refusé (`InvalidRefreshTokenError`). La création du
+  nouveau refresh token est une opération distincte, hors de cette transaction.
+- `Reservation @@unique([userId, slotId])` : le doublon est bloqué en base
+  (`P2002` traduit en `DuplicateReservationError`), en plus de la règle métier.
+- Capacité protégée contre la concurrence : l'insertion d'une réservation se fait
+  dans une transaction qui verrouille la ligne du créneau (`SELECT ... FOR UPDATE`)
+  avant de recompter les places, ce qui empêche le dépassement de capacité en
+  accès concurrent. La règle reste lisible dans le use case ; la protection contre
+  les courses vit dans `PrismaReservationRepository`.
+
+Un test d'intégration Prisma (`tests/integration/PrismaAuth.test.ts`) valide ces
+comportements sur une vraie base. Il est ignoré par défaut et s'active ainsi :
+
+```
+docker compose up -d db
+npm run db:push
+RUN_PRISMA_IT=1 npm test
+```
 
 ## Bloc Authentification avancée
 
@@ -127,44 +182,46 @@ erreur métier dédiée et un test.
 ## Tests
 
 - Tests unitaires : cas d'usage de réservation (8) et d'authentification
-  (RegisterUser, LoginUser, RefreshTokens, LogoutUser, GetProfile), avec des
-  repositories en mémoire et des doublures rapides, sans base de données.
+  (RegisterUser, LoginUser, RefreshTokens, LogoutUser, GetProfile), mappers
+  Prisma (User, RefreshToken) et repositories Prisma (traduction P2002 ->
+  EmailAlreadyInUseError, `consume` -> null quand le token est déjà consommé),
+  avec des doublures rapides, sans base de données.
 - Tests d'intégration (Supertest) : endpoint /health, flux d'authentification
   complet, et autorisation par rôle (401 sans token, 403 mauvais rôle, 200 bon
   rôle).
-- Total : 32 tests.
+- Test d'intégration Prisma sur base réelle : ignoré par défaut, activé avec
+  `RUN_PRISMA_IT=1` (voir section Persistance).
+- Total : 40 tests exécutés (plus 2 tests Prisma ignorés sans base).
 
 ## Limites connues
 
-- Persistance : les repositories sont en mémoire. Prisma/PostgreSQL n'est pas
-  encore branché ; les données ne survivent pas à un redémarrage.
-- Capacité et concurrence : la disponibilité des places est vérifiée en comptant
-  les réservations actives avant insertion. En accès concurrent, deux requêtes
-  peuvent lire la même valeur avant d'insérer et dépasser la capacité. Au
-  branchement de Prisma, cette vérification devra être protégée par une
-  transaction sérialisable ou un verrou de ligne (SELECT ... FOR UPDATE),
-  complété par une contrainte d'unicité (userId, slotId) contre les doublons.
-- Rotation des refresh tokens : la révocation de l'ancien token et l'insertion
-  du nouveau se font en deux opérations. Au branchement de Prisma/PostgreSQL,
-  les exécuter dans une même transaction pour rendre la rotation atomique et
-  éviter tout état incohérent en cas d'échec entre les deux.
 - Les routes HTTP de réservation ne sont pas encore exposées : seul le cas
-  d'usage et ses tests existent.
-- Un seul secret d'access token ; pas de détection de rejeu au-delà du refus
-  d'un refresh token déjà révoqué.
+  d'usage `CreateReservation` et ses tests existent. La protection de capacité
+  et le doublon sont en place côté persistance (`PrismaReservationRepository`).
+- Repositories en mémoire volatils : utilisés pour les tests et le développement
+  sans base ; les données n'y survivent pas à un redémarrage. Le serveur utilise
+  PostgreSQL via Prisma.
+- Migrations : `db:push` synchronise le schéma pour le développement. Aucune
+  migration versionnée n'est committée pour l'instant (`db:migrate` à utiliser
+  pour en générer).
+- Un seul secret d'access token ; la détection de rejeu se limite au refus d'un
+  refresh token déjà consommé (pas d'invalidation en cascade de la famille de
+  tokens en cas de vol détecté).
 
 ## Structure du projet
 
 ```
+prisma/
+  schema.prisma    modèles de persistance (User, RefreshToken, Venue, Event, Slot, Reservation)
 src/
   domain/          entités, value objects, erreurs, policies, interfaces de repositories
   application/     cas d'usage et ports techniques
-  infrastructure/  adapters (persistance en mémoire, sécurité, temps, id, config)
+  infrastructure/  adapters : persistance (prisma/, in-memory/), sécurité, temps, id, config
   interface/http/  routes, middlewares, gestionnaire d'erreurs, présentateurs
-  main/            composition root et serveur
+  main/            composition root (in-memory et Prisma) et serveur
 tests/
-  unit/            tests des cas d'usage
-  integration/     tests HTTP (Supertest)
+  unit/            tests des cas d'usage et des mappers/repositories Prisma
+  integration/     tests HTTP (Supertest), dont un test Prisma conditionnel
   fakes/ support/  doublures et utilitaires de test
 scripts/
   check-architecture.sh

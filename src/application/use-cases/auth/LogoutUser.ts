@@ -22,12 +22,8 @@ export class LogoutUser {
   async execute(command: LogoutUserCommand): Promise<void> {
     const { refreshTokenRepo, refreshTokens, clock } = this.deps
 
+    // Révoque le token s'il est actif ; idempotent (consume renvoie null sinon).
     const tokenHash = refreshTokens.hash(command.refreshToken)
-    const stored = await refreshTokenRepo.findByHash(tokenHash)
-    const now = clock.now()
-
-    if (stored && stored.isActive(now)) {
-      await refreshTokenRepo.save(stored.revoke(now))
-    }
+    await refreshTokenRepo.consume(tokenHash, clock.now())
   }
 }

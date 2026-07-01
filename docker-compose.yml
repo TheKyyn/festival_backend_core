@@ -1,5 +1,4 @@
-# PostgreSQL pour le développement local.
-# Le service "api" sera ajouté à l'étape Infrastructure (Prisma + Express).
+# PostgreSQL pour le développement local et les tests d'intégration Prisma.
 services:
   db:
     image: postgres:16-alpine

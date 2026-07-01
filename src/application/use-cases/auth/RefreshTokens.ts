@@ -41,23 +41,18 @@ export class RefreshTokens {
     const { users, refreshTokenRepo, refreshTokens, clock } = this.deps
 
     const tokenHash = refreshTokens.hash(command.refreshToken)
-    const stored = await refreshTokenRepo.findByHash(tokenHash)
-    if (!stored) {
+
+    // Consommation atomique : révoque le token seulement s'il est encore actif.
+    // Si null, il a déjà été consommé/expiré → rejeu refusé.
+    const consumed = await refreshTokenRepo.consume(tokenHash, clock.now())
+    if (!consumed) {
       throw new InvalidRefreshTokenError()
     }
 
-    const now = clock.now()
-    if (!stored.isActive(now)) {
-      throw new InvalidRefreshTokenError()
-    }
-
-    const user = await users.findById(stored.userId)
+    const user = await users.findById(consumed.userId)
     if (!user) {
       throw new InvalidRefreshTokenError()
     }
-
-    // Rotation : l'ancien token est révoqué avant d'en émettre un nouveau.
-    await refreshTokenRepo.save(stored.revoke(now))
 
     const { accessToken, refreshToken } = await issueTokens(user, this.deps)
     return { accessToken, refreshToken, user }
