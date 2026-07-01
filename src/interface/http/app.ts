@@ -3,6 +3,8 @@ import express, { type Express } from 'express'
 import { authRoutes } from './routes/authRoutes'
 import { adminRoutes } from './routes/adminRoutes'
 import { reservationRoutes } from './routes/reservationRoutes'
+import { venueRoutes } from './routes/venueRoutes'
+import { eventRoutes } from './routes/eventRoutes'
 import { errorHandler } from './errorHandler'
 import type { AppDependencies } from './AppDependencies'
 import './types'
@@ -22,6 +24,8 @@ export function createApp(deps: AppDependencies): Express {
   app.use('/api/auth', authRoutes(deps))
   app.use('/api/admin', adminRoutes(deps))
   app.use('/api/reservations', reservationRoutes(deps))
+  app.use('/api/venues', venueRoutes(deps))
+  app.use('/api/events', eventRoutes(deps))
 
   app.use(errorHandler)
 

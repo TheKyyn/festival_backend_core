@@ -111,3 +111,47 @@ export class UserNotFoundError extends DomainError {
     super(message)
   }
 }
+
+// --- Catalogue (lieux / événements / créneaux) ---
+
+export class VenueNotFoundError extends DomainError {
+  readonly code = 'VENUE_NOT_FOUND'
+  constructor(venueId: string) {
+    super(`Lieu introuvable: ${venueId}`)
+  }
+}
+
+export class EventNotFoundError extends DomainError {
+  readonly code = 'EVENT_NOT_FOUND'
+  constructor(eventId: string) {
+    super(`Événement introuvable: ${eventId}`)
+  }
+}
+
+export class InvalidVenueDataError extends DomainError {
+  readonly code = 'INVALID_VENUE_DATA'
+  constructor(message: string) {
+    super(message)
+  }
+}
+
+export class InvalidEventDatesError extends DomainError {
+  readonly code = 'INVALID_EVENT_DATES'
+  constructor(message = 'La date de début doit précéder la date de fin.') {
+    super(message)
+  }
+}
+
+export class InvalidSlotDatesError extends DomainError {
+  readonly code = 'INVALID_SLOT_DATES'
+  constructor(message: string) {
+    super(message)
+  }
+}
+
+export class InvalidSlotDataError extends DomainError {
+  readonly code = 'INVALID_SLOT_DATA'
+  constructor(message: string) {
+    super(message)
+  }
+}

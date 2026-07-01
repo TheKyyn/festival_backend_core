@@ -7,6 +7,11 @@ import type { CreateReservation } from '../../application/use-cases/reservation/
 import type { ListMyReservations } from '../../application/use-cases/reservation/ListMyReservations'
 import type { CancelReservation } from '../../application/use-cases/reservation/CancelReservation'
 import type { ValidateReservation } from '../../application/use-cases/reservation/ValidateReservation'
+import type { CreateVenue } from '../../application/use-cases/catalog/CreateVenue'
+import type { CreateEvent } from '../../application/use-cases/catalog/CreateEvent'
+import type { CreateSlot } from '../../application/use-cases/catalog/CreateSlot'
+import type { ListEvents } from '../../application/use-cases/catalog/ListEvents'
+import type { GetEventSlots } from '../../application/use-cases/catalog/GetEventSlots'
 import type { TokenService } from '../../application/ports/TokenService'
 
 /**
@@ -24,5 +29,10 @@ export interface AppDependencies {
   listMyReservations: ListMyReservations
   cancelReservation: CancelReservation
   validateReservation: ValidateReservation
+  createVenue: CreateVenue
+  createEvent: CreateEvent
+  createSlot: CreateSlot
+  listEvents: ListEvents
+  getEventSlots: GetEventSlots
   tokenService: TokenService
 }

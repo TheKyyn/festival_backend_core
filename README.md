@@ -13,7 +13,7 @@ Prérequis : Node.js >= 20, Docker (pour PostgreSQL).
 cp .env.example .env
 npm install               # installe les dépendances et génère le client Prisma (postinstall)
 npm run typecheck         # vérifie les types (0 erreur attendue)
-npm test                  # lance les tests (56 sans base ; 2 tests Prisma ignorés)
+npm test                  # lance les tests (74 sans base ; 2 tests Prisma ignorés)
 npm run arch:check        # vérifie l'absence d'import interdit dans le coeur
 
 # Base de données (requise pour lancer l'API)
@@ -74,6 +74,33 @@ curl http://localhost:3000/api/admin/ping \
 Pour tester la création d'une réservation, réservez le créneau ouvert
 (`seed-slot-open`) avec un visiteur qui ne l'a pas encore : `POST
 /api/reservations` avec `{ "slotId": "seed-slot-open" }`.
+
+### Scénario organisateur (création du catalogue)
+
+```
+# 1. L'organisateur se connecte
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"organizer@festival.fr","password":"Organizer123!"}'
+
+# 2. Crée un lieu (renvoie l'id du lieu)
+curl -X POST http://localhost:3000/api/venues \
+  -H "Authorization: Bearer <accessToken organizer>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Galerie Nord","address":"Paris","capacity":150}'
+
+# 3. Crée un événement rattaché au lieu (renvoie l'id de l'événement)
+curl -X POST http://localhost:3000/api/events \
+  -H "Authorization: Bearer <accessToken organizer>" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Nouvelle Expo","description":"...","venueId":"<venueId>","startDate":"2030-06-01T00:00:00.000Z","endDate":"2030-06-30T00:00:00.000Z"}'
+
+# 4. Ajoute un créneau à son événement
+curl -X POST http://localhost:3000/api/events/<eventId>/slots \
+  -H "Authorization: Bearer <accessToken organizer>" \
+  -H "Content-Type: application/json" \
+  -d '{"startTime":"2030-06-10T10:00:00.000Z","endTime":"2030-06-10T12:00:00.000Z","capacity":30}'
+```
 
 ## Bloc Clean Architecture
 
@@ -205,6 +232,11 @@ que les droits explicitement listés.
 | GET | /api/reservations/me | authentifié |
 | DELETE | /api/reservations/:id | authentifié (propriétaire ou ADMIN ; annulation) |
 | POST | /api/reservations/:id/validate | authentifié + action VALIDATE_RESERVATION (STAFF/ORGANIZER/ADMIN) |
+| POST | /api/venues | authentifié + action CREATE_EVENT (ORGANIZER/ADMIN) |
+| GET | /api/events | public |
+| POST | /api/events | authentifié + action CREATE_EVENT (ORGANIZER/ADMIN) |
+| GET | /api/events/:id/slots | public |
+| POST | /api/events/:id/slots | ORGANIZER propriétaire de l'événement ou ADMIN |
 
 ### Exemples
 
@@ -246,13 +278,17 @@ middleware `authorize`.
   LogoutUser, GetProfile), mappers Prisma (User, RefreshToken) et repositories Prisma
   (traduction P2002 -> EmailAlreadyInUseError, `consume` -> null quand le token est
   déjà consommé), avec des doublures rapides, sans base de données.
+  Ajoute les cas d'usage du catalogue (CreateVenue, CreateEvent, CreateSlot :
+  succès, entités introuvables, dates invalides, ownership organisateur).
 - Tests d'intégration (Supertest) : /health, flux d'authentification complet,
-  autorisation par rôle (401 sans token, 403 mauvais rôle, 200 bon rôle), et routes
+  autorisation par rôle (401 sans token, 403 mauvais rôle, 200 bon rôle), routes
   de réservation (POST 401/201, DELETE 403 pour un tiers, annulation par le
-  propriétaire, validate 403 pour un VISITOR / 200 pour un STAFF).
+  propriétaire, validate 403 VISITOR / 200 STAFF), et routes du catalogue (venues
+  401/403/201, events 201, slots 403 pour un autre organisateur / 201 pour un
+  ADMIN, GET events et slots publics 200).
 - Test d'intégration Prisma sur base réelle : ignoré par défaut, activé avec
   `RUN_PRISMA_IT=1` (voir section Persistance).
-- Total : 56 tests exécutés (plus 2 tests Prisma ignorés sans base).
+- Total : 74 tests exécutés (plus 2 tests Prisma ignorés sans base).
 
 ## Limites connues
 
