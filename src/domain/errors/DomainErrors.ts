@@ -1,6 +1,6 @@
 /**
  * Erreur métier de base. `code` est un identifiant STABLE et indépendant du HTTP.
- * La couche interface (Express) le traduira plus tard en statut (404, 403, 409...),
+ * La couche interface (Express) le traduit en statut (404, 403, 409...),
  * ce qui garde le domaine ignorant du protocole de transport.
  */
 export abstract class DomainError extends Error {

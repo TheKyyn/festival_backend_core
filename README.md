@@ -5,6 +5,8 @@ réservations), structuré selon la Clean Architecture, en TypeScript.
 
 Blocs évalués : **Authentification avancée** et **Clean Architecture**.
 
+Dépôt : `<URL du dépôt GitHub ou GitLab à renseigner avant le rendu>`
+
 ## Démarrage rapide
 
 Prérequis : Node.js >= 20, Docker (pour PostgreSQL).
@@ -288,9 +290,9 @@ middleware `authorize`.
   ValidateReservation) et d'authentification (RegisterUser, LoginUser, RefreshTokens,
   LogoutUser, GetProfile), mappers Prisma (User, RefreshToken) et repositories Prisma
   (traduction P2002 -> EmailAlreadyInUseError, `consume` -> null quand le token est
-  déjà consommé), avec des doublures rapides, sans base de données.
-  Ajoute les cas d'usage du catalogue (CreateVenue, CreateEvent, CreateSlot :
-  succès, entités introuvables, dates invalides, ownership organisateur).
+  déjà consommé) et cas d'usage du catalogue (CreateVenue, CreateEvent, CreateSlot :
+  succès, entités introuvables, dates invalides, ownership organisateur), avec des
+  doublures rapides, sans base de données.
 - Tests d'intégration (Supertest) : /health, flux d'authentification complet,
   autorisation par rôle (401 sans token, 403 mauvais rôle, 200 bon rôle), routes
   de réservation (POST 401/201, DELETE 403 pour un tiers, annulation par le
@@ -300,6 +302,21 @@ middleware `authorize`.
 - Test d'intégration Prisma sur base réelle : ignoré par défaut, activé avec
   `RUN_PRISMA_IT=1` (voir section Persistance).
 - Total : 74 tests exécutés (plus 2 tests Prisma ignorés sans base).
+
+## Choix techniques
+
+- Node.js + TypeScript strict + Express : câblage manuel des couches, ce qui rend
+  la dépendance vers l'intérieur explicite et vérifiable.
+- Clean Architecture : le domaine et l'application ne dépendent que d'interfaces ;
+  les implémentations concrètes sont injectées par le composition root (`main`).
+- Prisma confiné à l'infrastructure ; les modèles de persistance sont convertis
+  vers les entités du domaine par des mappers.
+- Authentification : access token JWT (HS256, courte durée) ; refresh token opaque
+  aléatoire stocké haché (SHA-256) avec rotation ; mots de passe hachés (bcrypt).
+- Autorisation par action (`AccessPolicy`), sans hiérarchie de rôles ; les règles
+  liées au propriétaire (annulation, ajout de créneau) sont dans les use cases.
+- Tests : Vitest + Supertest ; repositories en mémoire pour tester les use cases
+  sans base de données ; contrôle d'architecture automatisé (`arch:check`).
 
 ## Limites connues
 
