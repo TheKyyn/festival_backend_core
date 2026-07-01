@@ -19,7 +19,7 @@ npm test                  # lance les tests (74 sans base ; 2 tests Prisma ignor
 npm run arch:check        # vérifie l'absence d'import interdit dans le coeur
 
 # Base de données (requise pour lancer l'API)
-docker compose up -d db        # démarre PostgreSQL
+docker compose up -d --wait db # démarre PostgreSQL et attend qu'il soit prêt
 npm run db:migrate:deploy      # applique les migrations (reconstruit le schéma)
 npm run db:seed                # insère des données de démonstration (comptes de test)
 npm run dev                    # démarre l'API sur http://localhost:3000
@@ -28,6 +28,11 @@ npm run dev                    # démarre l'API sur http://localhost:3000
 Le fichier `.env` (copié depuis `.env.example`) doit exister avant les commandes
 Prisma et le serveur : `DATABASE_URL` y est défini. `npm install` seul ne suffit
 donc pas pour lancer l'API.
+
+`--wait` attend que PostgreSQL soit prêt (healthcheck) avant de continuer, ce qui
+évite un échec de `db:migrate:deploy` au premier lancement. Si votre version de
+Docker Compose ne connaît pas `--wait`, lancez `docker compose up -d db` puis
+patientez quelques secondes avant la commande suivante.
 
 Les tests s'exécutent sans base de données : ils utilisent des repositories en
 mémoire. Le serveur (`npm run dev`) utilise PostgreSQL via Prisma ; il faut donc
@@ -186,7 +191,7 @@ Un test d'intégration Prisma (`tests/integration/PrismaAuth.test.ts`) valide ce
 comportements sur une vraie base. Il est ignoré par défaut et s'active ainsi :
 
 ```
-docker compose up -d db
+docker compose up -d --wait db
 npm run db:push
 RUN_PRISMA_IT=1 npm test
 ```
