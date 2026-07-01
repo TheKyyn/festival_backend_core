@@ -17,10 +17,10 @@ npm test                  # lance les tests (74 sans base ; 2 tests Prisma ignor
 npm run arch:check        # vérifie l'absence d'import interdit dans le coeur
 
 # Base de données (requise pour lancer l'API)
-docker compose up -d db   # démarre PostgreSQL
-npm run db:push           # crée le schéma dans la base (Prisma)
-npm run db:seed           # insère des données de démonstration (comptes de test)
-npm run dev               # démarre l'API sur http://localhost:3000
+docker compose up -d db        # démarre PostgreSQL
+npm run db:migrate:deploy      # applique les migrations (reconstruit le schéma)
+npm run db:seed                # insère des données de démonstration (comptes de test)
+npm run dev                    # démarre l'API sur http://localhost:3000
 ```
 
 Le fichier `.env` (copié depuis `.env.example`) doit exister avant les commandes
@@ -146,10 +146,21 @@ etc.).
 Commandes Prisma :
 
 ```
-npm run prisma:generate   # génère le client (aussi lancé au postinstall)
-npm run db:push           # synchronise le schéma avec la base (développement)
-npm run db:migrate        # crée/applique une migration versionnée
+npm run prisma:generate     # génère le client (aussi lancé au postinstall)
+npm run db:migrate:deploy   # applique les migrations existantes (reconstruction d'une base)
+npm run db:migrate          # développement : crée puis applique une nouvelle migration
+npm run db:push             # développement rapide : synchronise le schéma sans migration
 ```
+
+Le schéma est versionné dans `prisma/migrations/`. Deux approches :
+
+- `db:migrate:deploy` (recommandé pour reconstruire une base, correction incluse) :
+  applique les migrations committées, sans en créer de nouvelle. C'est la façon
+  fiable de rebâtir exactement le schéma attendu.
+- `db:migrate` (`prisma migrate dev`) : en développement, détecte les changements
+  de `schema.prisma` et crée une nouvelle migration versionnée.
+- `db:push` : synchronise le schéma directement, pratique pour itérer vite en
+  local, mais sans historique de migration.
 
 ### Contraintes de base qui renforcent les règles métier
 
@@ -298,9 +309,9 @@ middleware `authorize`.
 - Repositories en mémoire volatils : utilisés pour les tests et le développement
   sans base ; les données n'y survivent pas à un redémarrage. Le serveur utilise
   PostgreSQL via Prisma.
-- Migrations : `db:push` synchronise le schéma pour le développement. Aucune
-  migration versionnée n'est committée pour l'instant (`db:migrate` à utiliser
-  pour en générer).
+- Migrations : une migration initiale versionnée est committée dans
+  `prisma/migrations/`. La reconstruction se fait avec `db:migrate:deploy` ;
+  `db:push` reste disponible pour itérer vite en local sans migration.
 - Un seul secret d'access token ; la détection de rejeu se limite au refus d'un
   refresh token déjà consommé (pas d'invalidation en cascade de la famille de
   tokens en cas de vol détecté).
