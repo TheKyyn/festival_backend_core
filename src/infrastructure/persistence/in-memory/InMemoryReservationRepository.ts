@@ -28,7 +28,15 @@ export class InMemoryReservationRepository implements ReservationRepository {
     )
   }
 
+  async findByUser(userId: string): Promise<Reservation[]> {
+    return [...this.reservations.values()].filter((reservation) => reservation.userId === userId)
+  }
+
   async save(reservation: Reservation): Promise<void> {
+    this.reservations.set(reservation.id, reservation)
+  }
+
+  async update(reservation: Reservation): Promise<void> {
     this.reservations.set(reservation.id, reservation)
   }
 }

@@ -1,4 +1,7 @@
 import { CreateReservation } from '../application/use-cases/reservation/CreateReservation'
+import { ListMyReservations } from '../application/use-cases/reservation/ListMyReservations'
+import { CancelReservation } from '../application/use-cases/reservation/CancelReservation'
+import { ValidateReservation } from '../application/use-cases/reservation/ValidateReservation'
 import { RegisterUser } from '../application/use-cases/auth/RegisterUser'
 import { LoginUser } from '../application/use-cases/auth/LoginUser'
 import { RefreshTokens } from '../application/use-cases/auth/RefreshTokens'
@@ -41,6 +44,9 @@ export interface Container {
   passwordHasher: PasswordHasher
   tokenService: TokenService
   createReservation: CreateReservation
+  listMyReservations: ListMyReservations
+  cancelReservation: CancelReservation
+  validateReservation: ValidateReservation
   registerUser: RegisterUser
   loginUser: LoginUser
   refreshTokens: RefreshTokens
@@ -67,6 +73,9 @@ export function assembleContainer(repositories: Repositories, env: EnvConfig): C
   }
 
   const createReservation = new CreateReservation({ slots, reservations, clock, ids })
+  const listMyReservations = new ListMyReservations({ reservations })
+  const cancelReservation = new CancelReservation({ reservations })
+  const validateReservation = new ValidateReservation({ reservations })
   const registerUser = new RegisterUser({ users, hasher: passwordHasher, ids, clock })
   const loginUser = new LoginUser({
     users,
@@ -102,6 +111,9 @@ export function assembleContainer(repositories: Repositories, env: EnvConfig): C
     passwordHasher,
     tokenService,
     createReservation,
+    listMyReservations,
+    cancelReservation,
+    validateReservation,
     registerUser,
     loginUser,
     refreshTokens,
@@ -131,6 +143,10 @@ export function toAppDependencies(container: Container): AppDependencies {
     refreshTokens: container.refreshTokens,
     logoutUser: container.logoutUser,
     getProfile: container.getProfile,
+    createReservation: container.createReservation,
+    listMyReservations: container.listMyReservations,
+    cancelReservation: container.cancelReservation,
+    validateReservation: container.validateReservation,
     tokenService: container.tokenService,
   }
 }

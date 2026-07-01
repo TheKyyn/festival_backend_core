@@ -2,6 +2,7 @@ import express, { type Express } from 'express'
 
 import { authRoutes } from './routes/authRoutes'
 import { adminRoutes } from './routes/adminRoutes'
+import { reservationRoutes } from './routes/reservationRoutes'
 import { errorHandler } from './errorHandler'
 import type { AppDependencies } from './AppDependencies'
 import './types'
@@ -20,6 +21,7 @@ export function createApp(deps: AppDependencies): Express {
 
   app.use('/api/auth', authRoutes(deps))
   app.use('/api/admin', adminRoutes(deps))
+  app.use('/api/reservations', reservationRoutes(deps))
 
   app.use(errorHandler)
 

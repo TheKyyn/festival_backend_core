@@ -152,6 +152,10 @@ que les droits explicitement listés.
 | POST | /api/auth/logout | public (refresh token requis) |
 | GET | /api/auth/me | authentifié |
 | GET | /api/admin/ping | authentifié + action MANAGE_USERS (rôle ADMIN) |
+| POST | /api/reservations | authentifié (body `{ slotId }`) |
+| GET | /api/reservations/me | authentifié |
+| DELETE | /api/reservations/:id | authentifié (propriétaire ou ADMIN ; annulation) |
+| POST | /api/reservations/:id/validate | authentifié + action VALIDATE_RESERVATION (STAFF/ORGANIZER/ADMIN) |
 
 ### Exemples
 
@@ -179,25 +183,33 @@ rôles), absence de doublon, place disponible, quota global de réservations
 actives par utilisateur, absence de conflit horaire. Chaque règle possède une
 erreur métier dédiée et un test.
 
+`CancelReservation` est réservée au propriétaire ou à un ADMIN et passe le statut
+à CANCELLED (annulation métier, pas de suppression). `ValidateReservation` est
+réservée aux rôles STAFF/ORGANIZER/ADMIN (action VALIDATE_RESERVATION) et fait
+passer une réservation en attente à CONFIRMED. L'autorisation dépendante du
+propriétaire est portée par le use case ; l'autorisation par rôle passe par le
+middleware `authorize`.
+
 ## Tests
 
-- Tests unitaires : cas d'usage de réservation (8) et d'authentification
-  (RegisterUser, LoginUser, RefreshTokens, LogoutUser, GetProfile), mappers
-  Prisma (User, RefreshToken) et repositories Prisma (traduction P2002 ->
-  EmailAlreadyInUseError, `consume` -> null quand le token est déjà consommé),
-  avec des doublures rapides, sans base de données.
-- Tests d'intégration (Supertest) : endpoint /health, flux d'authentification
-  complet, et autorisation par rôle (401 sans token, 403 mauvais rôle, 200 bon
-  rôle).
+- Tests unitaires : cas d'usage de réservation (CreateReservation, CancelReservation,
+  ValidateReservation) et d'authentification (RegisterUser, LoginUser, RefreshTokens,
+  LogoutUser, GetProfile), mappers Prisma (User, RefreshToken) et repositories Prisma
+  (traduction P2002 -> EmailAlreadyInUseError, `consume` -> null quand le token est
+  déjà consommé), avec des doublures rapides, sans base de données.
+- Tests d'intégration (Supertest) : /health, flux d'authentification complet,
+  autorisation par rôle (401 sans token, 403 mauvais rôle, 200 bon rôle), et routes
+  de réservation (POST 401/201, DELETE 403 pour un tiers, annulation par le
+  propriétaire, validate 403 pour un VISITOR / 200 pour un STAFF).
 - Test d'intégration Prisma sur base réelle : ignoré par défaut, activé avec
   `RUN_PRISMA_IT=1` (voir section Persistance).
-- Total : 40 tests exécutés (plus 2 tests Prisma ignorés sans base).
+- Total : 56 tests exécutés (plus 2 tests Prisma ignorés sans base).
 
 ## Limites connues
 
-- Les routes HTTP de réservation ne sont pas encore exposées : seul le cas
-  d'usage `CreateReservation` et ses tests existent. La protection de capacité
-  et le doublon sont en place côté persistance (`PrismaReservationRepository`).
+- L'annulation d'une réservation est métier (statut CANCELLED, pas de suppression
+  physique). La protection de capacité et le contrôle des doublons sont assurés
+  côté persistance (`PrismaReservationRepository`).
 - Repositories en mémoire volatils : utilisés pour les tests et le développement
   sans base ; les données n'y survivent pas à un redémarrage. Le serveur utilise
   PostgreSQL via Prisma.

@@ -61,6 +61,20 @@ export class ScheduleConflictError extends DomainError {
   }
 }
 
+export class ReservationNotFoundError extends DomainError {
+  readonly code = 'RESERVATION_NOT_FOUND'
+  constructor(reservationId: string) {
+    super(`Réservation introuvable: ${reservationId}`)
+  }
+}
+
+export class InvalidReservationStateError extends DomainError {
+  readonly code = 'INVALID_RESERVATION_STATE'
+  constructor(message: string) {
+    super(message)
+  }
+}
+
 // --- Authentification ---
 
 export class WeakPasswordError extends DomainError {

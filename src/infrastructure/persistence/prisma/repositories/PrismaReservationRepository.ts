@@ -32,6 +32,18 @@ export class PrismaReservationRepository implements ReservationRepository {
     return rows.map(toDomainReservation)
   }
 
+  async findByUser(userId: string): Promise<Reservation[]> {
+    const rows = await this.client.reservation.findMany({ where: { userId } })
+    return rows.map(toDomainReservation)
+  }
+
+  async update(reservation: Reservation): Promise<void> {
+    await this.client.reservation.update({
+      where: { id: reservation.id },
+      data: { status: reservation.status.value },
+    })
+  }
+
   /**
    * Insère la réservation dans une transaction qui verrouille la ligne du créneau
    * (SELECT ... FOR UPDATE), afin de sérialiser les réservations concurrentes sur
