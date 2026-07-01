@@ -7,8 +7,9 @@ import { toAppDependencies } from '../../src/main/container'
 import { createApp } from '../../src/interface/http/app'
 import { loadEnv } from '../../src/infrastructure/config/env'
 
-// Ne s'exécute que sur demande explicite avec une base disponible :
-//   docker compose up -d db && npx prisma db push && RUN_PRISMA_IT=1 npm test
+// Ne s'exécute que sur demande explicite, sur une base de test dédiée :
+//   docker compose up -d db && npm run db:push && RUN_PRISMA_IT=1 npm test
+// Ce test nettoie les tables (deleteMany) avant chaque cas.
 const enabled = process.env.RUN_PRISMA_IT === '1'
 
 describe.skipIf(!enabled)('Authentification sur PostgreSQL (Prisma)', () => {

@@ -3,8 +3,7 @@ import type { EventRepository } from '../../../domain/repositories/EventReposito
 
 /**
  * Adapter de persistance en mémoire de l'EventRepository.
- * Complète la couche de persistance ; sera consommé par les use cases
- * de gestion des événements à l'étape suivante.
+ * Utilisé pour le développement sans base et par les tests.
  */
 export class InMemoryEventRepository implements EventRepository {
   private readonly events = new Map<string, Event>()

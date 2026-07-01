@@ -3,8 +3,7 @@ import type { UserRepository } from '../../../domain/repositories/UserRepository
 
 /**
  * Adapter de persistance en mémoire du UserRepository.
- * Complète la couche de persistance ; sera consommé par les use cases
- * d'authentification à l'étape suivante.
+ * Utilisé pour le développement sans base et par les tests.
  */
 export class InMemoryUserRepository implements UserRepository {
   private readonly users = new Map<string, User>()

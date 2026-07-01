@@ -151,6 +151,10 @@ npm run db:push
 RUN_PRISMA_IT=1 npm test
 ```
 
+Avertissement : ce test nettoie les tables concernées (`deleteMany` avant chaque
+cas). Lancez `RUN_PRISMA_IT=1` sur une **base de test dédiée**, jamais sur une
+base contenant des données à conserver (le seed serait effacé).
+
 ## Bloc Authentification avancée
 
 ### Flux
