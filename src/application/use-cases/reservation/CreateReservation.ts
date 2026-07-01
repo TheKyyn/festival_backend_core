@@ -74,7 +74,8 @@ export class CreateReservation {
     }
 
     // 5. Disponibilité des places / événement complet.
-    // Concurrence : voir README > Limites connues (protection à ajouter avec Prisma).
+    // Le use case garde la règle métier lisible ; l'adapter Prisma renforce la
+    // capacité en transaction avec verrou de ligne.
     const activeOnSlot = await reservations.countActiveBySlot(slot.id)
     if (activeOnSlot >= slot.capacity) {
       throw new SlotFullError(slot.id)
