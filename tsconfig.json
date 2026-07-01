@@ -22,5 +22,5 @@
     "resolveJsonModule": true,
     "noEmit": true
   },
-  "include": ["src", "tests", "vitest.config.ts"]
+  "include": ["src", "tests", "prisma/**/*.ts", "vitest.config.ts"]
 }

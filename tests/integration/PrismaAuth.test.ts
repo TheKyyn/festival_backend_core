@@ -27,8 +27,12 @@ describe.skipIf(!enabled)('Authentification sur PostgreSQL (Prisma)', () => {
   })
 
   beforeEach(async () => {
-    await prisma.refreshToken.deleteMany()
+    // Ordre respectant les clés étrangères (enfants avant parents).
     await prisma.reservation.deleteMany()
+    await prisma.refreshToken.deleteMany()
+    await prisma.slot.deleteMany()
+    await prisma.event.deleteMany()
+    await prisma.venue.deleteMany()
     await prisma.user.deleteMany()
   })
 

@@ -13,12 +13,13 @@ Prérequis : Node.js >= 20, Docker (pour PostgreSQL).
 cp .env.example .env
 npm install               # installe les dépendances et génère le client Prisma (postinstall)
 npm run typecheck         # vérifie les types (0 erreur attendue)
-npm test                  # lance les tests (40 ; 2 tests Prisma ignorés sans base)
+npm test                  # lance les tests (56 sans base ; 2 tests Prisma ignorés)
 npm run arch:check        # vérifie l'absence d'import interdit dans le coeur
 
 # Base de données (requise pour lancer l'API)
 docker compose up -d db   # démarre PostgreSQL
 npm run db:push           # crée le schéma dans la base (Prisma)
+npm run db:seed           # insère des données de démonstration (comptes de test)
 npm run dev               # démarre l'API sur http://localhost:3000
 ```
 
@@ -29,6 +30,50 @@ donc pas pour lancer l'API.
 Les tests s'exécutent sans base de données : ils utilisent des repositories en
 mémoire. Le serveur (`npm run dev`) utilise PostgreSQL via Prisma ; il faut donc
 démarrer la base et pousser le schéma au préalable.
+
+## Comptes de test
+
+Créés par `npm run db:seed`.
+
+| Rôle | Email | Mot de passe |
+| --- | --- | --- |
+| ADMIN | admin@festival.fr | Admin123! |
+| ORGANIZER | organizer@festival.fr | Organizer123! |
+| STAFF | staff@festival.fr | Staff123! |
+| VISITOR | visitor@festival.fr | Visitor123! |
+
+Le seed insère aussi 1 lieu (Maison Européenne de la Photographie), 1 événement,
+2 créneaux (un ouvert à tous, un réservé aux rôles ORGANIZER/ADMIN) et 1
+réservation d'exemple (le visiteur, sur le créneau ouvert, statut PENDING).
+
+### Scénario rapide (API démarrée sur le port 3000)
+
+```
+# 1. Le visiteur se connecte et consulte ses réservations (voit celle du seed)
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"visitor@festival.fr","password":"Visitor123!"}'
+curl http://localhost:3000/api/reservations/me \
+  -H "Authorization: Bearer <accessToken visitor>"
+
+# 2. Le staff valide la réservation d'exemple (PENDING -> CONFIRMED)
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"staff@festival.fr","password":"Staff123!"}'
+curl -X POST http://localhost:3000/api/reservations/seed-reservation-1/validate \
+  -H "Authorization: Bearer <accessToken staff>"
+
+# 3. L'admin accède à une route protégée par rôle
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@festival.fr","password":"Admin123!"}'
+curl http://localhost:3000/api/admin/ping \
+  -H "Authorization: Bearer <accessToken admin>"
+```
+
+Pour tester la création d'une réservation, réservez le créneau ouvert
+(`seed-slot-open`) avec un visiteur qui ne l'a pas encore : `POST
+/api/reservations` avec `{ "slotId": "seed-slot-open" }`.
 
 ## Bloc Clean Architecture
 
