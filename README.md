@@ -5,7 +5,7 @@ réservations), structuré selon la Clean Architecture, en TypeScript.
 
 Blocs évalués : **Authentification avancée** et **Clean Architecture**.
 
-Dépôt : `<URL du dépôt GitHub ou GitLab à renseigner avant le rendu>`
+Dépôt : https://github.com/TheKyyn/festival_backend_core
 
 ## Démarrage rapide
 
